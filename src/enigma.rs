@@ -215,11 +215,11 @@ impl Walze {
     }
 
     pub fn map_char(&self, c: u8, stellung: u8) -> u8 {
-        (self.inner_walze.map_char((c + stellung) % 26) + 26 - stellung) % 26
+        (self.inner_walze.inner_walze.mapping[(c + stellung) as usize % 26] + c) % 26
     }
 
     pub fn inverse_map_char(&self, c: u8, stellung: u8) -> u8 {
-        (self.inner_walze.inverse_map_char((c + stellung) % 26) + 26 - stellung) % 26
+        (self.inner_walze.inverse_mapping[(c + stellung) as usize % 26] + c) % 26
     }
 
     pub const fn mit_übertragungskerbe(mut self, c: char) -> Self {
