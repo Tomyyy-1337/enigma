@@ -9,31 +9,52 @@ pub struct Enigma<const N_WALZEN: usize> {
 } 
 
 impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
+    /// Creates a new Enigma machine with the specified entry wheel, rotors, and reflector.
     pub fn new(
-        eintrittswalze: &'static Eintrittswalze,
         walzen: [&'static Walze; N_WALZEN],
-        umkehrwalze: &'static Umkehrwalze, 
+        mut ringstellung: [u8; N_WALZEN]
     ) -> Self {
         let mut steckbrett: [u8; 26] = [0; 26];
         for i in 0..26 {
             steckbrett[i] = i as u8;
         }
+        for i in 0..N_WALZEN {
+            if ringstellung[i] > 26 || ringstellung[i] == 0 {
+                panic!("Ungültige Ringstellung: {}", ringstellung[i]);
+            }
+            ringstellung[i] -= 1; 
+        }
         Enigma {
-            eintrittswalze,
+            eintrittswalze: &Eintrittswalze::ETW,
             walzen,
-            umkehrwalze,
-            ringstellung: [0; N_WALZEN],
+            umkehrwalze: &Umkehrwalze::UKW_B,
+            ringstellung,
             walzen_stellung: [0; N_WALZEN],
             steckbrett
         }
     }
 
+    pub fn with_eintrittswalze(mut self, eintrittswalze: &'static Eintrittswalze) -> Self {
+        self.eintrittswalze = eintrittswalze;
+        self
+    }
+
+    pub fn with_umkehrwalze(mut self, umkehrwalze: &'static Umkehrwalze) -> Self {
+        self.umkehrwalze = umkehrwalze;
+        self
+    }
+
+    /// Unplugs all plugboard connections, resetting the plugboard to its default state where each letter maps to itself.
     pub fn reset_plugboard(&mut self) {
         for i in 0..26 {
             self.steckbrett[i] = i as u8;
         }
     }
 
+    /// Sets the plugboard connections based on a string of space-separated letter pairs.
+    /// Each pair of letters represents a connection between those two letters on the plugboard.
+    /// 
+    /// Example input: "AD CN ET FL GI JV KZ PU QY WX" connects A<->D, C<->N, E<->T, etc.
     pub fn set_plugboard(&mut self, connections: &str) {
         self.reset_plugboard(); 
         connections.split_ascii_whitespace()
@@ -51,22 +72,17 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
             });
     } 
 
+    /// Encodes a string of characters using the Enigma machine's current configuration.
+    /// The rotors will advance with each character encoded, simulating the behavior of the original Enigma machine.
+    /// 
+    /// The encode function changes the rotor positions, so the same input will yield different outputs if encoded multiple times without resetting the rotor positions.
     pub fn encode(&mut self, input: &str) -> String {
         input.chars()
             .map(|c| self.encode_char(c))
             .collect()
     }
 
-    pub fn set_ringstellung(&mut self, mut ringstellung: [u8; N_WALZEN]) {
-        for i in 0..N_WALZEN {
-            if ringstellung[i] > 26 || ringstellung[i] == 0 {
-                panic!("Ungültige Ringstellung: {}", self.ringstellung[i]);
-            }
-            ringstellung[i] -= 1; 
-        }
-        self.ringstellung = ringstellung;
-    }
-
+    /// Sets the rotor positions (Walzenstellung) for each rotor.
     pub fn set_walzen_stellung(&mut self, mut stellungen: [u8; N_WALZEN]) {
         for i in 0..N_WALZEN {
             if stellungen[i] > 26 || stellungen[i] == 0 {
@@ -222,6 +238,9 @@ impl Walze {
         (self.inner_walze.inverse_mapping[(c + stellung) as usize % 26] + c) % 26
     }
 
+    /// Adds a turnover notch (Übertragungskerbe) to the rotor at the specified character position. 
+    /// For example, if the turnover notch is at 'Q', the next rotor will advance when the current rotor moves from 'Q' to 'R'.
+    /// A rotor can one ore more turnover notches, which can be set by calling this method multiple times.
     pub const fn mit_übertragungskerbe(mut self, c: char) -> Self {
         let index = (c as u8 - b'A') as usize;
         self.übertragungskerben |= 1 << index;
