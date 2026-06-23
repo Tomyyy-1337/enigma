@@ -1,4 +1,3 @@
-
 /// Represents the reflector (Umkehrwalze) of the Enigma machine
 pub struct Umkehrwalze {
     mapping: [u8; 26]
