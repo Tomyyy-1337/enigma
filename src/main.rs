@@ -1,16 +1,14 @@
 use enigma::{Enigma, Walze};
 
 fn main() {    
-    let mut enigma = Enigma::new(
-        [
-            &Walze::I,
-            &Walze::IV,
-            &Walze::III,
-        ],
-        [16, 26, 8]
-    );
+    let mut enigma = Enigma::new([
+        &Walze::I,
+        &Walze::IV,
+        &Walze::III,
+    ]);
 
     enigma.set_plugboard("AD CN ET FL GI JV KZ PU QY WX");
+    enigma.set_ringstellung([16, 26, 8]);
     enigma.set_walzen_stellung([18, 20, 26]);
 
     let test_string = "EJZLBSYEQPDWDUEEJJOUPSOFLBMUIMGLCSKBKJLYZTEIYTHZLUEUHRRKUZOWBVXFOUIZHYGVDXWQKKSBCPTVMNGUCLTQISSBTNSFGNFZCQSJARCNOSEGWMYCHNODWFGGZCQNHZYFATHTQWKGUNWHOXBWKFNPYAMVFT";

@@ -10,35 +10,32 @@ pub struct Enigma<const N_WALZEN: usize> {
 
 impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
     /// Creates a new Enigma machine with the specified entry wheel, rotors, and reflector.
+    /// 
+    /// By default, [`Umkehrwalze::UKW_B`] and [`Eintrittswalze::ETW`] are used as the reflector and entry wheel, respectively. Can be overridden with `with_umkehrwalze` and `with_eintrittswalze`.
     pub fn new(
         walzen: [&'static Walze; N_WALZEN],
-        mut ringstellung: [u8; N_WALZEN]
     ) -> Self {
         let mut steckbrett: [u8; 26] = [0; 26];
         for i in 0..26 {
             steckbrett[i] = i as u8;
         }
-        for i in 0..N_WALZEN {
-            if ringstellung[i] > 26 || ringstellung[i] == 0 {
-                panic!("Ungültige Ringstellung: {}", ringstellung[i]);
-            }
-            ringstellung[i] -= 1; 
-        }
         Enigma {
             eintrittswalze: &Eintrittswalze::ETW,
             walzen,
             umkehrwalze: &Umkehrwalze::UKW_B,
-            ringstellung,
+            ringstellung: [0; N_WALZEN],
             walzen_stellung: [0; N_WALZEN],
             steckbrett
         }
     }
 
+    /// Changes the entry wheel (Eintrittswalze) of the Enigma machine to the specified one.
     pub fn with_eintrittswalze(mut self, eintrittswalze: &'static Eintrittswalze) -> Self {
         self.eintrittswalze = eintrittswalze;
         self
     }
 
+    /// Changes the reflector (Umkehrwalze) of the Enigma machine to the specified one.
     pub fn with_umkehrwalze(mut self, umkehrwalze: &'static Umkehrwalze) -> Self {
         self.umkehrwalze = umkehrwalze;
         self
@@ -88,15 +85,27 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
             if stellungen[i] > 26 || stellungen[i] == 0 {
                 panic!("Ungültige Walzenstellung: {}", self.walzen_stellung[i]);
             }
-            stellungen[i] = (stellungen[i] - 1 + 26 - self.ringstellung[i]) % 26;
+            stellungen[i] = (stellungen[i] + 26 - 1) % 26;
         }
         self.walzen_stellung = stellungen;
     }
 
+    /// Sets the ring settings (Ringstellung) for each rotor.
+    pub fn set_ringstellung(&mut self, mut ringstellungen: [u8; N_WALZEN]) {
+        for i in 0..N_WALZEN {
+            if ringstellungen[i] > 26 || ringstellungen[i] == 0 {
+                panic!("Ungültige Ringstellung: {}", self.ringstellung[i]);
+            }
+            ringstellungen[i] = (ringstellungen[i] + 26 - 1) % 26;
+        }
+        self.ringstellung = ringstellungen;
+    }
+
+    /// Returns the current rotor positions (Walzenstellung) for each rotor, adjusted to a 1-based index (1-26).
     pub fn get_walzen_stellung(&self) -> [u8; N_WALZEN] {
         let mut stellungen = [0; N_WALZEN];
         for i in 0..N_WALZEN {
-            stellungen[i] = (self.walzen_stellung[i] + self.ringstellung[i]) % 26 + 1;
+            stellungen[i] = (self.walzen_stellung[i]) % 26 + 1;
         }
         stellungen
     }
@@ -108,12 +117,12 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
         c = self.steckbrett[c as usize];
         c = self.eintrittswalze.map_char(c);
 
-        for (walze, stellung) in self.walzen.iter().zip(self.walzen_stellung).rev() {
-            c = walze.map_char(c, stellung);
+        for ((walze, stellung), ringstellung) in self.walzen.iter().zip(self.walzen_stellung).zip(self.ringstellung).rev() {
+            c = walze.map_char(c, (stellung + 26 - ringstellung) % 26);
         }
         c = self.umkehrwalze.map_char(c);
-        for (walze, stellung) in self.walzen.iter().zip(self.walzen_stellung) {
-            c = walze.inverse_map_char(c, stellung);
+        for ((walze, stellung), ringstellung) in self.walzen.iter().zip(self.walzen_stellung).zip(self.ringstellung) {
+            c = walze.inverse_map_char(c, (stellung + 26 - ringstellung) % 26);
         }
         
         c = self.eintrittswalze.inverse_map_char(c);
@@ -123,7 +132,7 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
 
     fn increment_walzen_stellung(&mut self) {
         for i in (0..self.walzen_stellung.len()).rev() {
-            let tmp = (self.walzen_stellung[i] + self.ringstellung[i]) % 26;
+            let tmp = (self.walzen_stellung[i]) % 26;
             self.walzen_stellung[i] = (self.walzen_stellung[i] + 1) % 26;
             if !self.walzen[i].is_übertragungskerbe((tmp) as usize) {
                 break;
