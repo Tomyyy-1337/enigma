@@ -5,7 +5,7 @@ pub struct Enigma<const N_WALZEN: usize> {
     eintrittswalze: &'static Eintrittswalze,
     walzen: [&'static Walze; N_WALZEN],
     umkehrwalze: &'static Umkehrwalze,
-    ringstellung: [u8; N_WALZEN],
+    ring_stellung: [u8; N_WALZEN],
     walzen_stellung: [u8; N_WALZEN],
     steckbrett: [u8; 26],
 } 
@@ -27,7 +27,7 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
             eintrittswalze: &Eintrittswalze::ETW,
             walzen,
             umkehrwalze: &Umkehrwalze::UKW_B,
-            ringstellung: [0; N_WALZEN],
+            ring_stellung: [0; N_WALZEN],
             walzen_stellung: [0; N_WALZEN],
             steckbrett: [0; 26],
         };
@@ -105,7 +105,7 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
             }
             ringstellungen[i] = (ringstellungen[i] + 26 - 1) % 26;
         }
-        self.ringstellung = ringstellungen;
+        self.ring_stellung = ringstellungen;
         return Ok(());
     }
 
@@ -125,12 +125,12 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
         c = self.steckbrett[c as usize];
         c = self.eintrittswalze.map_char(c);
 
-        for ((walze, stellung), ringstellung) in self.walzen.iter().zip(self.walzen_stellung).zip(self.ringstellung).rev() {
-            c = walze.map_char(c, (stellung + 26 - ringstellung) % 26);
+        for i in (0..N_WALZEN).rev() {
+            c = self.walzen[i].map_char(c, (self.walzen_stellung[i] + 26 - self.ring_stellung[i]) % 26);
         }
         c = self.umkehrwalze.map_char(c);
-        for ((walze, stellung), ringstellung) in self.walzen.iter().zip(self.walzen_stellung).zip(self.ringstellung) {
-            c = walze.inverse_map_char(c, (stellung + 26 - ringstellung) % 26);
+        for i in 0..N_WALZEN {
+            c = self.walzen[i].inverse_map_char(c, (self.walzen_stellung[i] + 26 - self.ring_stellung[i]) % 26);
         }
         
         c = self.eintrittswalze.inverse_map_char(c);
