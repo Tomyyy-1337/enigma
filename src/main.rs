@@ -1,6 +1,4 @@
-mod enigma;
-use enigma::{Enigma, Walze, Eintrittswalze, Umkehrwalze};
-
+use enigma::{Eintrittswalze, Enigma, Umkehrwalze, Walze};
 
 fn main() {    
     let mut enigma = Enigma::new(
@@ -22,5 +20,4 @@ fn main() {
     println!("Encoded: {}", &encoded);
 
     assert_eq!(encoded, "XAACHENXAACHENXISTGERETTETXDURQGEBUENDELTENEINSATZDERHILFSKRAEFTEKONNTEDIEBEDROHUNGABGEWENDETUNDDIERETTUNGDERSTADTGEGENXEINSXAQTXNULLXNULLXUHRSIQERGESTELLTWERDENX");
-
 }

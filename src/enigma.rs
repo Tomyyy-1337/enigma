@@ -1,5 +1,4 @@
-use std::ops::Deref;
-
+/// A struct representing an Enigma machine with a configurable number of rotors (N_WALZEN).
 pub struct Enigma<const N_WALZEN: usize> {
     eintrittswalze: &'static Eintrittswalze,
     walzen: [&'static Walze; N_WALZEN],
@@ -117,6 +116,7 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
     }
 }
 
+/// Represents the reflector (Umkehrwalze) of the Enigma machine
 pub struct Umkehrwalze {
     mapping: [u8; 26]
 }
@@ -144,6 +144,7 @@ impl Umkehrwalze {
     }
 }
 
+/// Represents the entry wheel (Eintrittswalze) of the Enigma machine
 pub struct Eintrittswalze {
     inner_walze: Umkehrwalze,
     inverse_mapping: [u8; 26],
@@ -179,6 +180,7 @@ impl Eintrittswalze {
     }
 }
 
+/// Represents a rotor (Walze) of the Enigma machine and its associated turnover notches (Übertragungskerben)
 pub struct Walze{
     inner_walze: Eintrittswalze,
     übertragungskerben: u32
