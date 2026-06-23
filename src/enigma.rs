@@ -1,7 +1,9 @@
+use std::ops::Deref;
+
 pub struct Enigma<const N_WALZEN: usize> {
-    eintrittswalze: &'static BasicWalze,
-    walzen: [&'static RotatingWalze; N_WALZEN],
-    umkehrwalze: &'static BasicWalze,
+    eintrittswalze: &'static Eintrittswalze,
+    walzen: [&'static Walze; N_WALZEN],
+    umkehrwalze: &'static Umkehrwalze,
     ringstellung: [u8; N_WALZEN],
     walzen_stellung: [u8; N_WALZEN],
     steckbrett: [u8; 26],
@@ -9,9 +11,9 @@ pub struct Enigma<const N_WALZEN: usize> {
 
 impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
     pub fn new(
-        eintrittswalze: &'static BasicWalze,
-        walzen: [&'static RotatingWalze; N_WALZEN],
-        umkehrwalze: &'static BasicWalze, 
+        eintrittswalze: &'static Eintrittswalze,
+        walzen: [&'static Walze; N_WALZEN],
+        umkehrwalze: &'static Umkehrwalze, 
     ) -> Self {
         let mut steckbrett: [u8; 26] = [0; 26];
         for i in 0..26 {
@@ -49,17 +51,6 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
                 self.steckbrett[b] = a as u8;
             });
     } 
-
-    // pub fn mit_steckbrettverbindung(mut self, a: char, b: char) -> Self {
-    //     let a = a as u8 - b'A';
-    //     let b = b as u8 - b'A';
-    //     if self.steckbrett[a as usize] != a || self.steckbrett[b as usize] != b {
-    //         panic!("Steckerbrettverbindung ungültig: {} <-> {}", char::from(a), char::from(b));
-    //     }
-    //     self.steckbrett[a as usize] = b;
-    //     self.steckbrett[b as usize] = a;
-    //     self
-    // }
 
     pub fn encode(&mut self, input: &str) -> String {
         input.chars()
@@ -100,17 +91,17 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
         
         let mut c = c as u8 - b'A';
         c = self.steckbrett[c as usize];
-        c = self.eintrittswalze.map_char(c, 0);
+        c = self.eintrittswalze.map_char(c);
 
         for (walze, stellung) in self.walzen.iter().zip(self.walzen_stellung).rev() {
             c = walze.map_char(c, stellung);
         }
-        c = self.umkehrwalze.map_char(c, 0);
+        c = self.umkehrwalze.map_char(c);
         for (walze, stellung) in self.walzen.iter().zip(self.walzen_stellung) {
             c = walze.inverse_map_char(c, stellung);
         }
         
-        c = self.eintrittswalze.inverse_map_char(c, 0);
+        c = self.eintrittswalze.inverse_map_char(c);
         c = self.steckbrett[c as usize];
         (c + b'A') as char
     }
@@ -126,80 +117,107 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
-pub struct BasicWalze {
-    mapping: [u8; 26],
-    inverse_mapping: [u8; 26],
+pub struct Umkehrwalze {
+    mapping: [u8; 26]
 }
 
-impl BasicWalze {
-    pub const ETW: BasicWalze = BasicWalze::new("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-    pub const UKW_A: BasicWalze = BasicWalze::new("EJMZALYXVBWFCRQUONTSPIKHGD");
-    pub const UKW_B: BasicWalze = BasicWalze::new("YRUHQSLDPXNGOKMIEBFZCWVJAT");
-    pub const UKW_C: BasicWalze = BasicWalze::new("FVPJIAOYEDRZXWGCTKUQSBNMHL");
+impl Umkehrwalze {
+    pub const UKW_A: Umkehrwalze = Umkehrwalze::new("EJMZALYXVBWFCRQUONTSPIKHGD");
+    pub const UKW_B: Umkehrwalze = Umkehrwalze::new("YRUHQSLDPXNGOKMIEBFZCWVJAT");
+    pub const UKW_C: Umkehrwalze = Umkehrwalze::new("FVPJIAOYEDRZXWGCTKUQSBNMHL");
 
     pub const fn new(mapping: &str) -> Self {
         let mut arr = [0; 26];
-        let mut inverse_arr = [0; 26];
         let bytes = mapping.as_bytes();
         let mut i: usize = 0;
         while i < 26 {
             arr[i] = ((bytes[i] - b'A' + 26 - i as u8) % 26) as u8;
-            inverse_arr[(i + arr[i] as usize) % 26] = ((i as u8 + 26 - (bytes[i] - b'A')) % 26) as u8;
             i += 1;
         }
-        BasicWalze {
-            mapping: arr,
+        Umkehrwalze {
+            mapping: arr
+        }
+    }
+
+    fn map_char(&self, c: u8) -> u8 {
+        (c + self.mapping[c as usize]) % 26
+    }
+}
+
+pub struct Eintrittswalze {
+    inner_walze: Umkehrwalze,
+    inverse_mapping: [u8; 26],
+}
+
+impl Eintrittswalze {
+    pub const ETW: Eintrittswalze = Eintrittswalze::new("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    pub const UKW_A: Eintrittswalze = Eintrittswalze::new("EJMZALYXVBWFCRQUONTSPIKHGD");
+    pub const UKW_B: Eintrittswalze = Eintrittswalze::new("YRUHQSLDPXNGOKMIEBFZCWVJAT");
+    pub const UKW_C: Eintrittswalze = Eintrittswalze::new("FVPJIAOYEDRZXWGCTKUQSBNMHL");
+
+    pub const fn new(mapping: &str) -> Self {
+        let inner_walze = Umkehrwalze::new(mapping);
+        let mut inverse_arr = [0; 26];
+        let bytes = mapping.as_bytes();
+        let mut i: usize = 0;
+        while i < 26 {
+            inverse_arr[(i + inner_walze.mapping[i] as usize) % 26] = ((i as u8 + 26 - (bytes[i] - b'A')) % 26) as u8;
+            i += 1;
+        }
+        Eintrittswalze {
+            inner_walze,
             inverse_mapping: inverse_arr,
         }
     }
 
-    fn map_inner(&self, c: u8, mapping: &[u8; 26], stellung: u8) -> u8 {
-        let index = (c + stellung) % 26;
-        let offset = mapping[index as usize];
-        (index + offset + 26 - stellung) % 26
+    fn map_char(&self, c: u8) -> u8 {
+        self.inner_walze.map_char(c)
     }
-
-    fn map_char(&self, c: u8, stellung: u8) -> u8 {
-        self.map_inner(c, &self.mapping, stellung)
-    }
-
-    fn inverse_map_char(&self, c: u8, stellung: u8) -> u8 {
-        self.map_inner(c, &self.inverse_mapping, stellung)
+   
+    fn inverse_map_char(&self, c: u8) -> u8 {
+        (c + self.inverse_mapping[c as usize]) % 26
     }
 }
 
-pub struct RotatingWalze{
-    inner_walze: BasicWalze,
+pub struct Walze{
+    inner_walze: Eintrittswalze,
     übertragungskerben: u32
 }
 
-impl RotatingWalze {
-    pub const I: RotatingWalze = RotatingWalze::new("EKMFLGDQVZNTOWYHXUSPAIBRCJ")
+impl Walze {
+    pub const I: Walze = Walze::new("EKMFLGDQVZNTOWYHXUSPAIBRCJ")
         .mit_übertragungskerbe('Q'); // Turn the next rotor when the current rotor moves from Q to R
-    pub const II: RotatingWalze = RotatingWalze::new("AJDKSIRUXBLHWTMCQGZNPYFVOE")
+    pub const II: Walze = Walze::new("AJDKSIRUXBLHWTMCQGZNPYFVOE")
         .mit_übertragungskerbe('E');
-    pub const III: RotatingWalze = RotatingWalze::new("BDFHJLCPRTXVZNYEIWGAKMUSQO")
+    pub const III: Walze = Walze::new("BDFHJLCPRTXVZNYEIWGAKMUSQO")
         .mit_übertragungskerbe('V');
-    pub const IV: RotatingWalze = RotatingWalze::new("ESOVPZJAYQUIRHXLNFTGKDCMWB")
+    pub const IV: Walze = Walze::new("ESOVPZJAYQUIRHXLNFTGKDCMWB")
         .mit_übertragungskerbe('J');
-    pub const V: RotatingWalze = RotatingWalze::new("VZBRGITYUPSDNHLXAWMJQOFECK")
+    pub const V: Walze = Walze::new("VZBRGITYUPSDNHLXAWMJQOFECK")
         .mit_übertragungskerbe('Z');
-    pub const VI: RotatingWalze = RotatingWalze::new("JPGVOUMFYQBENHZRDKASXLICTW")
+    pub const VI: Walze = Walze::new("JPGVOUMFYQBENHZRDKASXLICTW")
         .mit_übertragungskerbe('Z')
         .mit_übertragungskerbe('M');
-    pub const VII: RotatingWalze = RotatingWalze::new("NZJHGRCXMYSWBOUFAIVLPEKQDT")
+    pub const VII: Walze = Walze::new("NZJHGRCXMYSWBOUFAIVLPEKQDT")
         .mit_übertragungskerbe('Z')
         .mit_übertragungskerbe('M');
-    pub const VIII: RotatingWalze = RotatingWalze::new("FKQHTLXOCBJSPDZRAMEWNIUYGV")
+    pub const VIII: Walze = Walze::new("FKQHTLXOCBJSPDZRAMEWNIUYGV")
         .mit_übertragungskerbe('Z')
         .mit_übertragungskerbe('M');
 
     pub const fn new(mapping: &str) -> Self {
-        RotatingWalze {
-            inner_walze: BasicWalze::new(mapping),
+        Walze {
+            inner_walze: Eintrittswalze::new(mapping),
             übertragungskerben: 0
         }
+    }
+
+    pub fn map_char(&self, c: u8, stellung: u8) -> u8 {
+        (self.inner_walze.map_char((c + stellung) % 26) + 26 - stellung) % 26
+    }
+
+    pub fn inverse_map_char(&self, c: u8, stellung: u8) -> u8 {
+        (self.inner_walze.inverse_map_char((c + stellung) % 26) + 26 - stellung) % 26
     }
 
     pub const fn mit_übertragungskerbe(mut self, c: char) -> Self {
@@ -210,13 +228,5 @@ impl RotatingWalze {
 
     fn is_übertragungskerbe(&self, index: usize) -> bool {
         (self.übertragungskerben & (1 << index)) != 0
-    }
-}
-
-impl std::ops::Deref for RotatingWalze {
-    type Target = BasicWalze;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner_walze
     }
 }
