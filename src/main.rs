@@ -7,9 +7,9 @@ fn main() {
         &Walze::III,
     ]);
 
-    enigma.set_plugboard("AD CN ET FL GI JV KZ PU QY WX");
-    enigma.set_ringstellung([16, 26, 8]);
-    enigma.set_walzen_stellung([18, 20, 26]);
+    enigma.set_plugboard("AD CN ET FL GI JV KZ PU QY WX").unwrap();
+    enigma.set_ringstellung([16, 26, 8]).unwrap();
+    enigma.set_walzen_stellung([18, 20, 26]).unwrap();
 
     let test_string = "EJZLBSYEQPDWDUEEJJOUPSOFLBMUIMGLCSKBKJLYZTEIYTHZLUEUHRRKUZOWBVXFOUIZHYGVDXWQKKSBCPTVMNGUCLTQISSBTNSFGNFZCQSJARCNOSEGWMYCHNODWFGGZCQNHZYFATHTQWKGUNWHOXBWKFNPYAMVFT";
     let encoded = enigma.encode(test_string);
