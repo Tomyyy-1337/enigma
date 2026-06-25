@@ -35,3 +35,6 @@ pub use enigma::{Enigma};
 
 mod walze;
 pub use walze::{Eintrittswalze, Umkehrwalze, Walze};
+
+mod solver;
+pub use solver::{decypher};
