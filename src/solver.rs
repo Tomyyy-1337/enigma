@@ -44,7 +44,7 @@ pub fn decypher(cyphertext: &str, possible_rotors: &'static [Walze]) -> Enigma<3
     enigma
 }
 
-fn solve_pluggboard(
+pub fn solve_pluggboard(
     cyphertext: &str,
     walzen_selection: [&'static Walze; 3],
     ringstellung: [u8; 3],
@@ -58,20 +58,16 @@ fn solve_pluggboard(
     enigma.set_ringstellung(ringstellung).unwrap();
     enigma.set_walzen_stellung(walzenstellung).unwrap();
 
-    let base_score = score_german(&enigma.encode_and_reset(cyphertext).unwrap());
-
-    let mut best_score = base_score;
+    let mut best_score = score_german(&enigma.encode_and_reset(cyphertext).unwrap());
     let mut best_plugboard = Vec::new();
     
     let tuple_candidates = ('A'..='Z')
         .array_combinations::<2>()
         .collect::<Vec<_>>();
-
     
     let mut todo = vec![PlugboardState {
         enigma,
         next_plug_index: 0,
-        kill_counter: 1,
         score: 0.0
     }];
     let mut new_todo = Vec::new();
@@ -84,7 +80,7 @@ fn solve_pluggboard(
         io::stdout().flush().unwrap();
         
         let best_score_at_loop_start = best_score;
-        while let Some(PlugboardState { mut enigma, next_plug_index, kill_counter, .. }) = todo.pop() {
+        while let Some(PlugboardState { mut enigma, next_plug_index, .. }) = todo.pop() {
             for c in &tuple_candidates {
                 if enigma.is_plug_set(c[0]) || enigma.is_plug_set(c[1]) {
                     continue;
@@ -104,20 +100,9 @@ fn solve_pluggboard(
                     new_todo.push(PlugboardState {
                         enigma: enigma.clone(),
                         next_plug_index: next_plug_index + 1,
-                        kill_counter: 1,
                         score
                     });
-                } else {
-                    let new_kill_counter = kill_counter.saturating_sub(1);
-                    if new_kill_counter > 0 {
-                        new_todo.push(PlugboardState {
-                            enigma: enigma.clone(),
-                            next_plug_index: next_plug_index + 1,
-                            kill_counter: new_kill_counter,
-                            score
-                        });
-                    }
-                }
+                } 
 
                 enigma.reset_plug_unchecked(c[0], c[1]);
             }
@@ -126,13 +111,12 @@ fn solve_pluggboard(
         io::stdout().flush().unwrap();
 
         todo = new_todo;
-
+        new_todo = Vec::new();   
+        
         if todo.len() > 25 {
             todo.select_nth_unstable_by(10, |a, b| b.score.partial_cmp(&a.score).unwrap());
             todo.truncate(25);
         } 
-
-        new_todo = Vec::new();   
     }
         
     best_plugboard
@@ -141,7 +125,6 @@ fn solve_pluggboard(
 struct PlugboardState {
     enigma: Enigma<3>,
     next_plug_index: usize,
-    kill_counter: usize,
     score: f64,
 }
 

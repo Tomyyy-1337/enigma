@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-
 use crate::{Eintrittswalze, Umkehrwalze, Walze};
 
 /// A struct representing an Enigma machine with a configurable number of rotors (N_WALZEN).
@@ -12,7 +11,6 @@ pub struct Enigma<const N_WALZEN: usize> {
     walzen_stellung: [u8; N_WALZEN],
     steckbrett: [u8; 26],
 } 
-
 
 pub enum EnigmaError {
     InvalidPlugboardConnection(String),

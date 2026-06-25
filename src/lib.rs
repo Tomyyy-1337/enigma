@@ -37,4 +37,4 @@ mod walze;
 pub use walze::{Eintrittswalze, Umkehrwalze, Walze};
 
 mod solver;
-pub use solver::{decypher};
+pub use solver::{decypher, solve_pluggboard};

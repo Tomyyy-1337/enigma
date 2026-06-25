@@ -1,17 +1,15 @@
 use enigma::{Enigma, Walze, decypher};
 
-
-
 fn main() {    
     let mut enigma = Enigma::new([
         &Walze::II,
-        &Walze::V,
+        &Walze::I,
         &Walze::III,
     ]);
 
-    enigma.set_plugboard("AD CN ET FL GZ RV PU QY WX").unwrap();
-    enigma.set_ringstellung([6, 3, 8]).unwrap();
-    enigma.set_walzen_stellung([18, 24, 17]).unwrap();
+    enigma.set_plugboard("AD CN ET FW GP JV KI LU BY OX").unwrap();
+    enigma.set_ringstellung([6, 1, 8]).unwrap();
+    enigma.set_walzen_stellung([19, 24, 26]).unwrap();
 
     let faust = std::fs::read_to_string("faust").expect("Failed to read faust.txt");
 
@@ -27,5 +25,5 @@ fn main() {
     let decoded = enigma.encode_and_reset(&encoded).unwrap();
 
     assert_eq!(decoded, first_1000_chars);
-    println!("Decoded successfully! The decoded text matches the original input.");
+    println!("Decoded successfully! The decoded text matches the original input.");    
 }
