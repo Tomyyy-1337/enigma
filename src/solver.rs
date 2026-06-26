@@ -7,45 +7,74 @@ use crate::{Enigma, Walze};
 pub fn decypher(cyphertext: &str, possible_rotors: &'static [Walze]) -> Enigma<3> {
     println!("Finding possible rotor combinations...");
 
+    let mut best_score = f64::MIN;
+    let mut best_enigma = Enigma::new([&possible_rotors[0], &possible_rotors[1], &possible_rotors[2]]);
+
     let best_rotor_groups = select_walzen(&cyphertext, possible_rotors);
-    let rotors = best_rotor_groups[0];
-    let rotors = [&possible_rotors[rotors[0]], &possible_rotors[rotors[1]], &possible_rotors[rotors[2]]];
 
-    println!("Rotors {}, {}, {} selected", rotors[0].name(), rotors[1].name(), rotors[2].name());
-    println!("Finding possible ringstellung (ring settings) for the selected rotors...");
+    print!("Rotor Candidates found:");
+    for rotors in best_rotor_groups.iter() {
+        print!("[{} {} {}] ", possible_rotors[rotors[0]].name(), possible_rotors[rotors[1]].name(), possible_rotors[rotors[2]].name());
+    }
+    println!("\n---------------------------------------------------------------");
 
-    let shortend_cyphertext = &cyphertext[0..std::cmp::min(5000, cyphertext.len())];
-    let rotor_settings = select_first_ringstellung(&shortend_cyphertext, rotors);
-    let (ring_3, walze_3) = rotor_settings[0];
+    for rotors in best_rotor_groups.iter() {
+        println!("Testing rotor combination: {} {} {}", possible_rotors[rotors[0]].name(), possible_rotors[rotors[1]].name(), possible_rotors[rotors[2]].name());
+        
+        let rotors = [&possible_rotors[rotors[0]], &possible_rotors[rotors[1]], &possible_rotors[rotors[2]]];
+        let rotor_settings = select_first_ringstellung(&cyphertext, rotors);
 
-    print!("Ringstellung: x, x, {}, Walzenstellung: x, x, {}", ring_3, walze_3);
-    io::stdout().flush().unwrap();
-    
-    let rotor_settings_2 = select_second_ringstellung(&shortend_cyphertext, rotors, ring_3, walze_3);
-    let (ring_2, walze_1, walze_2) = rotor_settings_2[0];
-    
-    print!("\rRingstellung: 1, {}, {}, Walzenstellung: {}, {}, {}", ring_2, ring_3, walze_1, walze_2, walze_3);
-    io::stdout().flush().unwrap();
+        let mut best_ring_score = f64::MIN;
+        let mut best_ring_setting = (0,0,0,0,0);
+        for (ring_3, walze_3) in rotor_settings.into_iter() {
+            let (score, (ring_2, walze_1, walze_2)) = select_second_ringstellung(&cyphertext, rotors, ring_3, walze_3);
+            if score > best_ring_score {
+                best_ring_score = score;
+                best_ring_setting = (ring_2, ring_3, walze_1, walze_2, walze_3);
+            }
+        }
+        let (ring_2, ring_3, walze_1, walze_2, walze_3) = best_ring_setting;
+        println!("Ringstellung: [1, {ring_2}, {ring_3}], Walzenstellung: [{walze_1}, {walze_2}, {walze_3}]");
+        
+        let plugboard = solve_pluggboard(
+            &cyphertext, 
+            rotors, 
+            [1, ring_2, ring_3],
+            [walze_1, walze_2, walze_3]
+        );
 
-    println!("\nFinding possible plugboard settings...");
+        let mut enigma = Enigma::new([rotors[0], rotors[1], rotors[2]]);
+        enigma.set_ringstellung([1, ring_2, ring_3]).unwrap();  
+        enigma.set_walzen_stellung([walze_1, walze_2, walze_3]).unwrap();
+        for [a, b] in &plugboard {
+            enigma.set_plug_unchecked(*a, *b);    
+        }
 
-    let plugboard = solve_pluggboard(
-        &cyphertext, 
-        rotors, 
-        [1, ring_2, ring_3],
-        [walze_1, walze_2, walze_3]
-    );
-    
-    println!("Possible plugboard: {:?}", plugboard);
+        let decoded = enigma.encode_and_reset(&cyphertext).unwrap();
+        let score = score_german(&decoded);
 
-    let mut enigma = Enigma::new([rotors[0], rotors[1], rotors[2]]);
-    enigma.set_ringstellung([1, ring_2, ring_3]).unwrap();
-    enigma.set_walzen_stellung([walze_1, walze_2, walze_3]).unwrap();
-    for [a, b] in &plugboard {
-        enigma.set_plug_unchecked(*a, *b);    
+        println!("Plugboard: {:?}\nScore: {:.4}", plugboard, score);
+        println!("---------------------------------------------------------------");
+
+        if score > best_score {
+            best_score = score;
+            best_enigma = enigma;
+        }
+
     }
 
-    enigma
+    let walzen = best_enigma.get_walzen_stellung();
+    let ringstellung = best_enigma.get_ringstellung();
+    let plugboard = best_enigma.get_plugboard_mapping();
+
+    println!("================================================");
+    println!("Solution found with Rotors: {} {} {}", best_enigma.get_rotors()[0].name(), best_enigma.get_rotors()[1].name(), best_enigma.get_rotors()[2].name());
+    println!("Ringstellung: [{}, {}, {}]", ringstellung[0], ringstellung[1], ringstellung[2]);
+    println!("Walzenstellung: [{}, {}, {}]", walzen[0], walzen[1], walzen[2]);
+    println!("Plugboard: {:?}", plugboard);
+    println!("================================================");
+
+    best_enigma
 }
 
 pub fn solve_pluggboard(
@@ -80,7 +109,7 @@ pub fn solve_pluggboard(
         if todo.is_empty() {
             break;
         }
-        print!("\rCurrent best plugboard: {:?}", best_plugboard);
+        print!("\rPlugboard: {:?}", best_plugboard);
         io::stdout().flush().unwrap();
         
         let best_score_at_loop_start = best_score;
@@ -183,7 +212,7 @@ fn select_second_ringstellung(
     walzen_selection: [&'static Walze; 3],
     ringstellung: u8,
     walzenstellung: u8,
-) -> Vec<(u8, u8, u8)> {   
+) -> (f64, (u8, u8, u8)) {   
     let started = std::sync::atomic::AtomicUsize::new(0);
     let finished = std::sync::atomic::AtomicUsize::new(0);
     
@@ -221,10 +250,8 @@ fn select_second_ringstellung(
     io::stdout().flush().unwrap();
 
     scores.into_iter()
-        .sorted_by(|(a, _), (b, _)| b.partial_cmp(a).unwrap())
-        .take(5)
-        .map(|(_, walzen_stellung)| walzen_stellung)
-        .collect()
+        .max_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap())
+        .unwrap()
 }
 
 fn select_walzen(cyphertext: &str, walzen: &'static[Walze]) -> Vec<[usize; 3]> {
@@ -268,10 +295,10 @@ fn select_walzen(cyphertext: &str, walzen: &'static[Walze]) -> Vec<[usize; 3]> {
     io::stdout().flush().unwrap();
 
     walzen_scores.into_iter()
-        .filter(|(_, score)| *score >= best_score * 0.9) 
+        .filter(|(_, score)| *score >= best_score * 0.991) 
         .sorted_by(|a, b| b.1.partial_cmp(&a.1).unwrap())
-        .take(5)
         .map(|(walzen, _)| [walzen.0, walzen.1, walzen.2])
+        .take(3)
         .collect()
 }
 

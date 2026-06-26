@@ -154,6 +154,18 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
         return Ok(());
     }
 
+    pub fn get_rotors(&self) -> &[&'static Walze; N_WALZEN] {
+        &self.walzen
+    }
+
+    pub fn get_ringstellung(&self) -> [u8; N_WALZEN] {
+        let mut ringstellungen = [0; N_WALZEN];
+        for i in 0..N_WALZEN {
+            ringstellungen[i] = (self.ring_stellung[i]) % 26 + 1;
+        }
+        ringstellungen
+    }
+
     /// Returns the current rotor positions (Walzenstellung) for each rotor, adjusted to a 1-based index (1-26).
     pub fn get_walzen_stellung(&self) -> [u8; N_WALZEN] {
         let mut stellungen = [0; N_WALZEN];
