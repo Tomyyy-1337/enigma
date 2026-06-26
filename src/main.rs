@@ -1,7 +1,7 @@
 use enigma::{Enigma, Walze, decypher};
 
 fn main() {    
-    let mut enigma = Enigma::new([
+ let mut enigma = Enigma::new([
         &Walze::I,
         &Walze::IV,
         &Walze::III,
@@ -11,19 +11,20 @@ fn main() {
     enigma.set_ringstellung([16, 26, 8]).unwrap();
     enigma.set_walzen_stellung([18, 20, 26]).unwrap();
 
+
     let faust = std::fs::read_to_string("faust").expect("Failed to read faust.txt");
     
-    let first_1000_chars: String = faust.chars()
+    let first_10000_chars: String = faust.chars()
         .map(|c| c.to_ascii_uppercase())
         .filter(|c| c.is_ascii_alphabetic())
         .take(10000)
         .collect();
     
-    let encoded = enigma.encode_and_reset(&first_1000_chars).unwrap();
+    let encoded = enigma.encode_and_reset(&first_10000_chars).unwrap();
 
     let mut enigma = decypher(&encoded, &Walze::SAMMLUNG_I_V);
     let decoded = enigma.encode_and_reset(&encoded).unwrap();
 
-    assert_eq!(decoded, first_1000_chars);
+    assert_eq!(decoded, first_10000_chars);
     println!("Decoded successfully! The decoded text matches the original input.");    
 }
