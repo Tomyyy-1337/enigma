@@ -13,8 +13,9 @@ pub fn decypher(cyphertext: &str, possible_rotors: &'static [Walze]) -> Enigma<3
 
     println!("Rotors {}, {}, {} selected", rotors[0].name(), rotors[1].name(), rotors[2].name());
     println!("Finding possible ringstellung (ring settings) for the selected rotors...");
-    
-    let rotor_settings = select_first_ringstellung(&cyphertext, rotors);
+
+    let shortend_cyphertext = &cyphertext[0..std::cmp::min(5000, cyphertext.len())];
+    let rotor_settings = select_first_ringstellung(&shortend_cyphertext, rotors);
     let (ring_2, ring_3, walze_1, walze_2, walze_3) = rotor_settings[0];
 
     println!("Ringstellung: 1, {}, {}", ring_2, ring_3);
@@ -30,11 +31,7 @@ pub fn decypher(cyphertext: &str, possible_rotors: &'static [Walze]) -> Enigma<3
     
     println!("Possible plugboard: {:?}", plugboard);
 
-    let mut enigma = Enigma::new([
-        rotors[0],
-        rotors[1],
-        rotors[2],
-    ]);
+    let mut enigma = Enigma::new([rotors[0], rotors[1], rotors[2]]);
     enigma.set_ringstellung([1, ring_2, ring_3]).unwrap();
     enigma.set_walzen_stellung([walze_1, walze_2, walze_3]).unwrap();
     for [a, b] in &plugboard {
@@ -113,9 +110,9 @@ pub fn solve_pluggboard(
         todo = new_todo;
         new_todo = Vec::new();   
         
-        if todo.len() > 25 {
+        if todo.len() > 50 {
             todo.select_nth_unstable_by(10, |a, b| b.score.partial_cmp(&a.score).unwrap());
-            todo.truncate(25);
+            todo.truncate(50);
         } 
     }
         
@@ -225,10 +222,9 @@ fn select_walzen(cyphertext: &str, walzen: &'static[Walze]) -> Vec<[usize; 3]> {
         .collect()
 }
 
-fn score_text(text: &str) -> f64 {
-    let ic = index_of_coincidences(text);
-    let entropy_score = 4.7 - entropy(text);
-    let repeeted_letters = 0.5 * repeeted_letters_score(text);
+pub fn score_text(text: &str) -> f64 {
+    let (entropy_score, ic) = entropy_ic(text);
+    let repeeted_letters = repeeted_letters_score(text);
     ic + entropy_score + repeeted_letters
 }
 
@@ -260,38 +256,12 @@ fn score_german(text: &str) -> f64 {
 }
 
 fn repeeted_letters_score(text: &str) -> f64 {
-    let mut score = 0.0;
-    let mut prev_char = None;
-
-    for c in text.chars() {
-        if Some(c) == prev_char {
-            score += 1.0;
-        }
-        prev_char = Some(c);
-    }
-
-    score /= text.len() as f64;
-    0.045 - score
+    let count = text.as_bytes().windows(2).filter(|window| window[0] == window[1]).count();
+    let score = count as f64 / (text.len() as f64 - 1.0);
+    0.3 - (0.027 - score).abs()
 }
 
-fn index_of_coincidences(text: &str) -> f64 {
-    let mut counts = [0; 26];
-    let total = text.len();
-
-    for c in text.chars() {
-        let index = (c.to_ascii_uppercase() as u8 - b'A') as usize;
-        counts[index] += 1;
-    }
-
-    let mut ic = 0.0;
-    for count in counts.iter() {
-        ic += (*count as f64 * (*count as f64 - 1.0)) / (total as f64 * (total as f64 - 1.0));
-    }
-
-    ic
-}
-
-fn entropy(text: &str) -> f64 {
+fn entropy_ic(text: &str) -> (f64, f64) {
     let mut counts = [0; 26];
     let total = text.len();
 
@@ -307,5 +277,13 @@ fn entropy(text: &str) -> f64 {
             entropy -= p * p.log2();
         }
     }
-    entropy
+    entropy = 1.0 - (entropy - 4.1).abs(); 
+
+    let mut ic = 0.0;
+    for count in counts.iter() {
+        ic += (*count as f64 * (*count as f64 - 1.0)) / (total as f64 * (total as f64 - 1.0));
+    }
+    ic *= 10.0;
+
+    (entropy, ic)
 }

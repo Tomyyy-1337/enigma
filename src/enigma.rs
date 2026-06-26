@@ -38,7 +38,7 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
     /// By default, [`Umkehrwalze::UKW_B`] and [`Eintrittswalze::ETW`] are used as the reflector and entry wheel, respectively. Can be overridden with `with_umkehrwalze` and `with_eintrittswalze`.
     pub fn new(walzen: [&'static Walze; N_WALZEN]) -> Self {
         let mut enigma = Enigma {
-            eintrittswalze: &Eintrittswalze::ETW,
+            eintrittswalze: &Eintrittswalze::ETW_ABC,
             walzen,
             umkehrwalze: &Umkehrwalze::UKW_B,
             ring_stellung: [0; N_WALZEN],
@@ -185,9 +185,8 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
 
     fn increment_walzen_stellung(&mut self) {
         for i in (0..self.walzen_stellung.len()).rev() {
-            let tmp = self.walzen_stellung[i];
             self.walzen_stellung[i] = (self.walzen_stellung[i] + 1) % 26;
-            if !self.walzen[i].is_übertragungskerbe((tmp) as usize) {
+            if !self.walzen[i].is_übertragungskerbe(self.walzen_stellung[i] as usize) {
                 break;
             }
         }

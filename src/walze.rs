@@ -57,8 +57,12 @@ impl Umkehrwalze {
 }
 
 impl Eintrittswalze {
-    pub const ETW: Eintrittswalze = Eintrittswalze::new("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-        .with_name("ETW");
+    pub const ETW_ABC: Eintrittswalze = Eintrittswalze::new("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+        .with_name("ETW ABC");
+
+    pub const ETW_QWERTZ: Eintrittswalze = Eintrittswalze::new("QWERTZUIOPASDFGHJKLYXCVBNM")
+        .with_name("ETW QWERTZ");
+
 
     /// Creates a new entry wheel (Eintrittswalze) with the specified mapping.
     /// The mapping should be a string of 26 uppercase letters, where each letter represents the output for the corresponding input letter (A-Z).
@@ -165,7 +169,7 @@ impl Walze {
     /// For example, if the turnover notch is at 'Q', the next rotor will advance when the current rotor moves from 'Q' to 'R'.
     /// A rotor can one ore more turnover notches, which can be set by calling this method multiple times.
     pub const fn mit_übertragungskerbe(mut self, c: char) -> Self {
-        let index = (c as u8 - b'A') as usize;
+        let index = ((c as u8 - b'A') as usize + 1) % 26;
         self.übertragungskerben |= 1 << index;
         self
     }
