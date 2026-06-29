@@ -67,12 +67,12 @@ pub fn decypher(cyphertext: &str, possible_rotors: &'static [Walze]) -> Enigma<3
     let ringstellung = best_enigma.get_ringstellung();
     let plugboard = best_enigma.get_plugboard_mapping();
 
-    println!("================================================");
+    println!("===============================================================");
     println!("Solution found with Rotors: {} {} {}", best_enigma.get_rotors()[0].name(), best_enigma.get_rotors()[1].name(), best_enigma.get_rotors()[2].name());
     println!("Ringstellung: [{}, {}, {}]", ringstellung[0], ringstellung[1], ringstellung[2]);
     println!("Walzenstellung: [{}, {}, {}]", walzen[0], walzen[1], walzen[2]);
     println!("Plugboard: {:?}", plugboard);
-    println!("================================================");
+    println!("===============================================================");
 
     best_enigma
 }
