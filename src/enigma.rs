@@ -10,6 +10,7 @@ pub struct Enigma<const N_WALZEN: usize> {
     ring_stellung: [u8; N_WALZEN],
     walzen_stellung: [u8; N_WALZEN],
     steckbrett: [u8; 26],
+    shortcut_ukw: [u8; 26],
 } 
 
 pub enum EnigmaError {
@@ -44,9 +45,21 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
             ring_stellung: [0; N_WALZEN],
             walzen_stellung: [0; N_WALZEN],
             steckbrett: [0; 26],
+            shortcut_ukw: [0; 26],
         };
         enigma.reset_plugboard();
+        enigma.calculate_shortcut();
         enigma
+    }
+
+    fn calculate_shortcut(&mut self) {
+        for i in 0..26 {
+            let mut c = i as u8;
+            c = self.walzen[0].map_char(c, (self.walzen_stellung[0] + 26 - self.ring_stellung[0]) % 26);
+            c = self.umkehrwalze.map_char(c);
+            c = self.walzen[0].inverse_map_char(c, (self.walzen_stellung[0] + 26 - self.ring_stellung[0]) % 26);
+            self.shortcut_ukw[i] = c;
+        }
     }
 
     /// Changes the entry wheel (Eintrittswalze) of the Enigma machine to the specified one.
@@ -58,6 +71,7 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
     /// Changes the reflector (Umkehrwalze) of the Enigma machine to the specified one.
     pub fn with_umkehrwalze(mut self, umkehrwalze: &'static Umkehrwalze) -> Self {
         self.umkehrwalze = umkehrwalze;
+        self.calculate_shortcut();
         self
     }
 
@@ -123,10 +137,10 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
     }   
 
     pub fn encode_and_reset(&mut self, input: &str) -> Result<String, EnigmaError> {
-        let enigma_before = self.clone();
         let walzen_stellung_before = self.walzen_stellung;
         let result = self.encode(input);
         self.walzen_stellung = walzen_stellung_before;
+        self.calculate_shortcut();  
         result
     }
 
@@ -139,7 +153,17 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
             stellungen[i] = (stellungen[i] + 26 - 1) % 26;
         }
         self.walzen_stellung = stellungen;
+        self.calculate_shortcut();
         Ok(())
+    }
+
+    pub fn set_walzen_stellung_unchecked(&mut self, stellungen: [u8; N_WALZEN]) {
+        self.walzen_stellung = stellungen;
+        self.calculate_shortcut();
+    }
+
+    pub fn set_ringstellung_unchecked(&mut self, ringstellungen: [u8; N_WALZEN]) {
+        self.ring_stellung = ringstellungen;
     }
 
     /// Sets the ring settings (Ringstellung) for each rotor.
@@ -182,11 +206,11 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
         c = self.steckbrett[c as usize];
         c = self.eintrittswalze.map_char(c);
 
-        for i in (0..N_WALZEN).rev() {
+        for i in (1..N_WALZEN).rev() {
             c = self.walzen[i].map_char(c, (self.walzen_stellung[i] + 26 - self.ring_stellung[i]) % 26);
         }
-        c = self.umkehrwalze.map_char(c);
-        for i in 0..N_WALZEN {
+        c = self.shortcut_ukw[c as usize];
+        for i in 1..N_WALZEN {
             c = self.walzen[i].inverse_map_char(c, (self.walzen_stellung[i] + 26 - self.ring_stellung[i]) % 26);
         }
         
@@ -195,12 +219,18 @@ impl<const N_WALZEN: usize> Enigma<N_WALZEN> {
         (c + b'A') as char
     }
 
+
     fn increment_walzen_stellung(&mut self) {
-        for i in (0..self.walzen_stellung.len()).rev() {
+        let mut i = N_WALZEN;
+        while i > 0 {
+            i -= 1;
             self.walzen_stellung[i] = (self.walzen_stellung[i] + 1) % 26;
             if !self.walzen[i].is_übertragungskerbe(self.walzen_stellung[i] as usize) {
                 break;
             }
+        }
+        if i == 0 {
+            self.calculate_shortcut();
         }
     }
 

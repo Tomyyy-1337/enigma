@@ -44,8 +44,8 @@ pub fn decypher(cyphertext: &str, possible_rotors: &'static [Walze]) -> Enigma<3
         );
 
         let mut enigma = Enigma::new([rotors[0], rotors[1], rotors[2]]);
-        enigma.set_ringstellung([1, ring_2, ring_3]).unwrap();  
-        enigma.set_walzen_stellung([walze_1, walze_2, walze_3]).unwrap();
+        enigma.set_ringstellung_unchecked([1, ring_2, ring_3]);  
+        enigma.set_walzen_stellung_unchecked([walze_1, walze_2, walze_3]);
         for [a, b] in &plugboard {
             enigma.set_plug_unchecked(*a, *b);    
         }
@@ -88,8 +88,8 @@ pub fn solve_pluggboard(
         walzen_selection[1],
         walzen_selection[2],
     ]);
-    enigma.set_ringstellung(ringstellung).unwrap();
-    enigma.set_walzen_stellung(walzenstellung).unwrap();
+    enigma.set_ringstellung_unchecked(ringstellung);
+    enigma.set_walzen_stellung_unchecked(walzenstellung);
 
     let mut best_score = score_german(&enigma.encode_and_reset(cyphertext).unwrap());
     let mut best_plugboard = Vec::new();
@@ -179,10 +179,10 @@ fn select_first_ringstellung(cyphertext: &str, walzen_selection: [&'static Walze
         let mut best_walzen_stellung = (0,0);
         let a = (l / 26) as u8 + 1;
         let b = (l % 26) as u8 + 1;
-        enigma.set_ringstellung([1, 1, a]).unwrap();
+        enigma.set_ringstellung_unchecked([1, 1, a]);
         for j in 0..26 {
             for k in 0..26 {
-                enigma.set_walzen_stellung([k + 1, j + 1, b]).unwrap();
+                enigma.set_walzen_stellung_unchecked([k + 1, j + 1, b]);
                 let decoded = enigma.encode(cyphertext).unwrap();
                 let score = score_text(&decoded);
                 if score > max_score {
@@ -213,13 +213,10 @@ fn select_second_ringstellung(
     ringstellung: u8,
     walzenstellung: u8,
 ) -> (f64, (u8, u8, u8)) {   
-    let started = std::sync::atomic::AtomicUsize::new(0);
-    let finished = std::sync::atomic::AtomicUsize::new(0);
-    
+    print!("\rCalculating scores for Ringstellung: [1, _ , {ringstellung}], Walzenstellung: [_, _ , {walzenstellung}]");
+    std::io::stdout().flush().unwrap();
     let ceil = 26*26;
     let scores: Vec<_> = (0..ceil).into_par_iter().map(|l| {
-        print!("\rCalculating scores for Walzen. [Started: {:>3} Finished: {:>3} Total: {ceil}]", started.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1, finished.load(std::sync::atomic::Ordering::SeqCst));
-        io::stdout().flush().unwrap();
         let mut enigma = Enigma::new([
             walzen_selection[0],
             walzen_selection[1],
@@ -230,9 +227,9 @@ fn select_second_ringstellung(
         let mut best_walzen_stellung = (0,0,0);
         let a = (l / 26) as u8 + 1;
         let b = (l % 26) as u8 + 1;
-        enigma.set_ringstellung([1, a, ringstellung]).unwrap();
+        enigma.set_ringstellung_unchecked([1, a, ringstellung]);
         for j in 0..26 {
-            enigma.set_walzen_stellung([j + 1, b, walzenstellung]).unwrap();
+            enigma.set_walzen_stellung_unchecked([j + 1, b, walzenstellung]);
             let decoded = enigma.encode(cyphertext).unwrap();
             let score = score_text(&decoded);
             if score > max_score {
@@ -240,8 +237,6 @@ fn select_second_ringstellung(
                 best_walzen_stellung = (a, j + 1, b);
             }
         }
-        print!("\rCalculating scores for Walzen. [Started: {:>3} Finished: {:>3} Total: {ceil}]", started.load(std::sync::atomic::Ordering::SeqCst), finished.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1);
-        io::stdout().flush().unwrap();
         (max_score, best_walzen_stellung)
     }).collect();
 
